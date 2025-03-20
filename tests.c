@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "s_arena.h"
+#include "sarena.h"
 
 #define PERROR(err) if(err != SA_SUCCESS) printf("%d\n",err);
 
@@ -16,12 +16,12 @@ struct M
 int main(int argc, char *argv[])
 {
     sa_err err;
-    SArena* a = s_arena_create(1064 * 2 - 1, &err);
+    SArena* a = sarena_create(1064 * 2 - 1, &err);
     PERROR(err);
 
-    struct M *m1 = s_arena_alloc(a, sizeof(struct M), &err);
+    struct M *m1 = sarena_alloc(a, sizeof(struct M), &err);
     PERROR(err);
-    struct M *m2 = s_arena_alloc(a, sizeof(struct M), &err);
+    struct M *m2 = sarena_alloc(a, sizeof(struct M), &err);
     PERROR(err);
 
     strcpy(m1->name, "NOVAK");
@@ -29,12 +29,12 @@ int main(int argc, char *argv[])
     strcpy(m2->name, "EMILIJA");
     strcpy(m2->desc, "222222222222222222");
 
-    s_arena_rewind(a);
+    sarena_rewind(a);
 
-    struct M *m3 = s_arena_alloc(a, sizeof(struct M), &err);
+    struct M *m3 = sarena_alloc(a, sizeof(struct M), &err);
     PERROR(err);
 
-    s_arena_destroy(a);
+    sarena_destroy(a);
 
     printf("Done\n");
     return 0;
