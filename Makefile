@@ -5,7 +5,7 @@
 # GLOBAL
 
 # D(ynamic) or S(tatic)
-LIB_TYPE = S
+LIB_TYPE = D
 
 CC = gcc
 
