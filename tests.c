@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     size_t i;
     for(i = 0; i < 10000; i++)
     {
-        sarena_alloc(a, sizeof(struct M), &err);
+        sarena_malloc(a, sizeof(struct M), &err);
         assert(err == SA_SUCCESS);
     }
 
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 
     for(i = 0; i < 1000000; i++)
     {
-        sarena_alloc(a, sizeof(struct M), &err);
+        sarena_malloc(a, sizeof(struct M), &err);
         assert(err == SA_SUCCESS);
     }
 

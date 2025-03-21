@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #define SA_RETURN(ret_val,out_param,out_val)                                   \
 {                                                                              \
@@ -148,31 +149,29 @@ static void _region_list_pop_front(RegionList* list)
 
 /* -------------------------------------------------------------------------- */
 
+static void _sarena_init(SArena* arena, size_t region_cap, sa_err* out_err);
+static void* _sarena_malloc(SArena* arena, size_t size, sa_err* out_err);
+
+/* -------------------------------------------------------------------------- */
+
 SArena* sarena_create(size_t region_cap, sa_err* out_err)
 {
-    if(region_cap == 0)
-        SA_RETURN(NULL, out_err, SA_INVALID_ARG);
-
     SArena* new = (SArena*)malloc(sizeof(SArena));
     if(new == NULL)
         SA_RETURN(NULL, out_err, SA_MALLOC_FAIL);
 
-    new->_region_cap = region_cap;
-    new->_rewind_it = NULL;
-    _region_list_init(&new->_regions);
+    sa_err err;
+    _sarena_init(new, region_cap, &err);
 
-    sa_err status = _region_list_push_back(&new->_regions, region_cap);
-    if(status == SA_SUCCESS)
-    {
-        pthread_mutex_init(&new->_lock, NULL);
-        SA_RETURN(new, out_err, SA_SUCCESS);
-    }
-    else if(status == SA_MALLOC_FAIL)
+    SArena* ret_val;
+    if(err != SA_SUCCESS)
     {
         free(new);
-        SA_RETURN(NULL, out_err, SA_MALLOC_FAIL);
+        ret_val = NULL;
     }
-    else assert(0);
+    else ret_val = new;
+
+    SA_RETURN(ret_val, out_err, err);
 }
 
 void sarena_destroy(SArena* arena)
@@ -186,50 +185,29 @@ void sarena_destroy(SArena* arena)
     free(arena);
 }
 
-void* sarena_alloc(SArena* arena, size_t size, sa_err* out_err)
+void* sarena_malloc(SArena* arena, size_t size, sa_err* out_err)
 {
     SA_LOCK(arena);
 
-    if((size > arena->_region_cap) || (size == 0))
-    {
-        SA_UNLOCK(arena);
-        SA_RETURN(NULL, out_err, SA_INVALID_ARG);
-    }
-
-    Region* curr_region = (arena->_rewind_it == NULL) ?
-        arena->_regions._tail : arena->_rewind_it;
-
-    size_t curr_region_cap = curr_region->_total_cap - curr_region->_used_cap;
-
-    if(size > curr_region_cap) // not enough memory in current region
-    {
-        if(arena->_rewind_it == NULL) // if not rewinding, push back a region
-        {
-            sa_err err = _region_list_push_back(&arena->_regions, arena->_region_cap);
-            if(err != SA_SUCCESS)
-            {
-                SA_UNLOCK(arena);
-                SA_RETURN(NULL, out_err, SA_MALLOC_FAIL);
-            }
-        }
-        else // if rewinding, advance rewind iterator
-        {
-            arena->_rewind_it = arena->_rewind_it->_next;
-
-            // if at the tail, turn of rewinding
-            if(arena->_rewind_it == arena->_regions._tail)
-                arena->_rewind_it = NULL;
-        }
-
-        // advance the curr_region ptr after allocing region/advancing rewind
-        curr_region = curr_region->_next;
-    }
-
-    void* alloc_addr = curr_region->_mem_pool + curr_region->_used_cap;
-    curr_region->_used_cap += size;
+    sa_err status;
+    void* alloc_addr = _sarena_malloc(arena, size, &status);
 
     SA_UNLOCK(arena);
-    SA_RETURN(alloc_addr, out_err, SA_SUCCESS);
+    SA_RETURN(alloc_addr, out_err, status);
+}
+
+void* sarena_calloc(SArena* arena, size_t size, sa_err* out_err)
+{
+    SA_LOCK(arena);
+
+    sa_err status;
+    void* alloc_addr = _sarena_malloc(arena, size, &status);
+
+    if(status == SA_SUCCESS)
+        memset(alloc_addr, 0, size);
+
+    SA_UNLOCK(arena);
+    SA_RETURN(alloc_addr, out_err, status);
 }
 
 void sarena_rewind(SArena* arena)
@@ -252,4 +230,78 @@ void sarena_rewind(SArena* arena)
         arena->_rewind_it = arena->_regions._head;
 
     SA_UNLOCK(arena);
+}
+
+void sarena_reset(SArena* arena)
+{
+    SA_LOCK(arena);
+
+    while(arena->_regions._count > 0)
+        _region_list_pop_front(&arena->_regions);
+
+    sa_err err;
+    _sarena_init(arena, arena->_region_cap, &err);
+
+    SA_UNLOCK(arena);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static void _sarena_init(SArena* arena, size_t region_cap, sa_err* out_err)
+{
+    if(region_cap == 0)
+        SA_RETURN_VOID(out_err, SA_INVALID_ARG);
+
+    arena->_region_cap = region_cap;
+    arena->_rewind_it = NULL;
+    _region_list_init(&arena->_regions);
+
+    sa_err status = _region_list_push_back(&arena->_regions, region_cap);
+    if(status == SA_SUCCESS)
+    {
+        pthread_mutex_init(&arena->_lock, NULL);
+        SA_RETURN_VOID(out_err, SA_SUCCESS);
+    }
+    else if(status == SA_MALLOC_FAIL)
+    {
+        SA_RETURN_VOID(out_err, SA_MALLOC_FAIL);
+    }
+    else assert(0);
+}
+
+static void* _sarena_malloc(SArena* arena, size_t size, sa_err* out_err)
+{
+    if((size > arena->_region_cap) || (size == 0))
+        SA_RETURN(NULL, out_err, SA_INVALID_ARG);
+
+    Region* curr_region = (arena->_rewind_it == NULL) ?
+        arena->_regions._tail : arena->_rewind_it;
+
+    size_t curr_region_cap = curr_region->_total_cap - curr_region->_used_cap;
+
+    if(size > curr_region_cap) // not enough memory in current region
+    {
+        if(arena->_rewind_it == NULL) // if not rewinding, push back a region
+        {
+            sa_err err = _region_list_push_back(&arena->_regions, arena->_region_cap);
+            if(err != SA_SUCCESS)
+                SA_RETURN(NULL, out_err, SA_MALLOC_FAIL);
+        }
+        else // if rewinding, advance rewind iterator
+        {
+            arena->_rewind_it = arena->_rewind_it->_next;
+
+            // if at the tail, turn of rewinding
+            if(arena->_rewind_it == arena->_regions._tail)
+                arena->_rewind_it = NULL;
+        }
+
+        // advance the curr_region ptr after allocing region/advancing rewind
+        curr_region = curr_region->_next;
+    }
+
+    void* alloc_addr = curr_region->_mem_pool + curr_region->_used_cap;
+    curr_region->_used_cap += size;
+
+    return alloc_addr;
 }
