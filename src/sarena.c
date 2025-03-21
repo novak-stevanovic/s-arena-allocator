@@ -2,6 +2,7 @@
 
 #include <pthread.h>
 #include <assert.h>
+#include <stdio.h>
 
 #define SA_RETURN(ret_val,out_param,out_val)                                   \
 {                                                                              \

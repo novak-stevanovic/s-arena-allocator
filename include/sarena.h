@@ -15,7 +15,8 @@
  * typical allocation size.
  *
  * It is important to note that each SArena object has its own lock,
- * assuring optimal performance in a multi-threaded environment. */
+ * assuring optimal performance in a multi-threaded environment. Thread-safety
+ * is achieved using pthreads. */
 
 struct SArena;
 typedef struct SArena SArena;

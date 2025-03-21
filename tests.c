@@ -16,23 +16,24 @@ struct M
 int main(int argc, char *argv[])
 {
     sa_err err;
-    SArena* a = sarena_create(1064 * 2 - 1, &err);
+    SArena* a = sarena_create(1000000, &err);
     PERROR(err);
 
-    struct M *m1 = sarena_alloc(a, sizeof(struct M), &err);
-    PERROR(err);
-    struct M *m2 = sarena_alloc(a, sizeof(struct M), &err);
-    PERROR(err);
+    size_t i;
+    for(i = 0; i < 10000; i++)
+    {
+        sarena_alloc(a, sizeof(struct M), &err);
+        assert(err == SA_SUCCESS);
+    }
 
-    strcpy(m1->name, "NOVAK");
-    strcpy(m1->desc, "111111111111111111");
-    strcpy(m2->name, "EMILIJA");
-    strcpy(m2->desc, "222222222222222222");
-
+    printf("REWIND\n");
     sarena_rewind(a);
 
-    struct M *m3 = sarena_alloc(a, sizeof(struct M), &err);
-    PERROR(err);
+    for(i = 0; i < 1000000; i++)
+    {
+        sarena_alloc(a, sizeof(struct M), &err);
+        assert(err == SA_SUCCESS);
+    }
 
     sarena_destroy(a);
 
