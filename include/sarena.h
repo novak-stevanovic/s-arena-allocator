@@ -100,10 +100,11 @@ void* sarena_calloc(SArena* arena, size_t size, sa_err* out_err);
 
 /* -------------------------------------------------------------------------- */
 
-/* This function resets the arena by marking all allocated memory within existing
-regions as available for reuse. It does not free any memory but instead sets all
-regions' used capacity to zero. If multiple regions exist, the arena enters
-'rewind mode' allowing previously allocated regions to be reused in order. */
+/* This function resets the arena by marking all allocated memory within
+ * existing regions as available for reuse. It does not free any memory
+ * but instead sets all regions' used capacity to zero. 
+ * If multiple regions exist, the arena enters 'rewind mode' allowing
+ * previously allocated regions to be reused in order. */
 
 void sarena_rewind(SArena* arena);
 
@@ -114,6 +115,9 @@ void sarena_rewind(SArena* arena);
  * The first region will be reset, making its memory available for reuse.
  * After this call, the arena will be in the same state as immediately
  * after sarena_init(). */
+
 void sarena_reset(SArena* arena);
 
-#endif // _S_ARENA_H_
+/* -------------------------------------------------------------------------- */
+
+#endif // _SARENA_H_
