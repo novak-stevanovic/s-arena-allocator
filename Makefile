@@ -5,7 +5,7 @@
 # GLOBAL
 
 # D(ynamic) or S(tatic)
-LIB_TYPE = D
+LIB_TYPE = S
 
 CC = gcc
 
@@ -32,7 +32,7 @@ endef
 # TEST
 
 TEST_CFLAGS = $(_BASE_CFLAGS)
-TEST_LFLAGS = -lm
+TEST_LFLAGS =
 
 # LIB SETTINGS
 
@@ -52,7 +52,7 @@ endif
 # INSTALL
 
 INSTALL_PREFIX = /usr/local
-INSTALL_HFILES = include/s_arena.h
+INSTALL_HFILES = include/sarena.h
 
 # ------------------------------------------------------------------------------
 
