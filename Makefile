@@ -1,111 +1,130 @@
-# Dependencies: NONE
+# -----------------------------------------------------------------------------
+# Validaton & Global Settings
+# -----------------------------------------------------------------------------
 
-# SETTINGS --------------------------------------------------------------------
+GOAL_COUNT := $(words $(MAKECMDGOALS))
 
-# GLOBAL
+ifneq ($(GOAL_COUNT),1)
+    ifneq ($(GOAL_COUNT),0)
+        $(error You cannot specify more than 1 target (got $(GOAL_COUNT): $(MAKECMDGOALS)))
+    endif
+endif
 
-# D(ynamic) or S(tatic)
-LIB_TYPE = S
+ifndef LIB_TYPE
+    LIB_TYPE = shared
+endif
+
+ifndef PREFIX
+    PREFIX = /usr/local
+endif
+
+ifneq ($(LIB_TYPE),shared)
+    ifneq ($(LIB_TYPE),archive)
+        $(error Invalid LIB_TYPE. USAGE: make [TARGET] [LIB_TYPE=shared/archive])
+    endif
+endif
+
+LIB_NAME = sarena
 
 CC = gcc
 
 C_SRC = $(shell find src -name "*.c")
 C_OBJ = $(patsubst src/%.c,build/%.o,$(C_SRC))
 
-_DEBUG_FLAGS =
-_OPTIMIZATION_FLAGS = -O2
-_WARN_FLAGS = -Wall
-_M_FLAGS = -MMD -MP
-_I_FLAGS = -Iinclude -Ilib/include
+# -----------------------------------------------------------------------------
+# Build Flags
+# -----------------------------------------------------------------------------
 
-_BASE_CFLAGS = -c $(_I_FLAGS) $(_M_FLAGS) $(_WARN_FLAGS) \
-$(_DEBUG_FLAGS) $(_OPTIMIZATION_FLAGS)
+# ---------------------------------------------------------
+# Base Flags
+# ---------------------------------------------------------
 
-# SRC
+BASE_CFLAGS_DEBUG = -g
+BASE_CFLAGS_OPTIMIZATION = -O0
+BASE_CFLAGS_WARN = -Wall
+BASE_CFLAGS_MAKE = -MMD -MP
+BASE_CFLAGS_INCLUDE = -Iinclude
 
-SRC_CFLAGS = $(_BASE_CFLAGS)
+BASE_CFLAGS = -c -fPIC $(BASE_CFLAGS_INCLUDE) $(BASE_CFLAGS_MAKE) \
+$(BASE_CFLAGS_WARN) $(BASE_CFLAGS_DEBUG) $(BASE_CFLAGS_OPTIMIZATION)
 
-define get_complete_src_cflags
-$(SRC_CFLAGS) -MF build/dependencies/$(1).d
-endef
+# ---------------------------------------------------------
+# C Source Flags
+# ---------------------------------------------------------
 
-# TEST
+SRC_CFLAGS = $(BASE_CFLAGS)
 
-TEST_CFLAGS = $(_BASE_CFLAGS)
-TEST_LFLAGS =
+# ---------------------------------------------------------
+# Test Flags
+# ---------------------------------------------------------
 
-# LIB SETTINGS
+TEST_CFLAGS = $(BASE_CFLAGS)
 
-LIB_NAME = sarena
+TEST_LFLAGS = -L. -l$(LIB_NAME)
 
-ifeq ($(LIB_TYPE), D)
-	LIB_FILE = lib$(LIB_NAME).so
-	LIB_FLAGS = -shared
-	SRC_CFLAGS += -fPIC
-	LIB_MAKE_COMMAND = $(CC) $(LIB_FLAGS) $(C_OBJ) -o $(LIB_FILE)
-else
-	LIB_FILE = lib$(LIB_NAME).a
-	LIB_FLAGS = rcs
-	LIB_MAKE_COMMAND = ar $(LIB_FLAGS) $(LIB_FILE) $(C_OBJ)
+ifeq ($(LIB_TYPE),shared)
+TEST_LFLAGS += -Wl,-rpath,.
 endif
 
-# INSTALL
+# ---------------------------------------------------------
+# Lib Make
+# ---------------------------------------------------------
 
-INSTALL_PREFIX = /usr/local
-INSTALL_HFILES = include/sarena.h
+LIB_AR_FILE = lib$(LIB_NAME).a
+LIB_SO_FILE = lib$(LIB_NAME).so
 
-# ------------------------------------------------------------------------------
+ifeq ($(LIB_TYPE), archive)
+LIB_FILE = $(LIB_AR_FILE)
+LIB_MAKE = ar rcs $(LIB_FILE) $(C_OBJ)
+else 
+LIB_FILE = $(LIB_SO_FILE)
+LIB_MAKE = $(CC) -shared $(C_OBJ) -o $(LIB_FILE)
+endif
 
-.PHONY: clean install all uninstall dirs
+# -----------------------------------------------------------------------------
+# Targets
+# -----------------------------------------------------------------------------
 
-# MISC
+.PHONY: all clean install uninstall 
 
-all: dirs $(LIB_FILE)
-
-dirs: | build build/dependencies
-
-build:
-	mkdir -p $@
-
-build/dependencies:
-	mkdir -p $@
-
-# MAIN
+all: $(LIB_FILE)
 
 $(LIB_FILE): $(C_OBJ)
-	$(LIB_MAKE_COMMAND)
+	$(LIB_MAKE)
 
 $(C_OBJ): build/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(call get_complete_src_cflags,$(basename $(notdir $@))) $< -o $@
+	$(CC) $(SRC_CFLAGS) $< -o $@
 
-# TEST
+# test -----------------------------------------------------
 
-test: dirs build/tests.o $(C_OBJ)
-	$(CC) build/tests.o $(C_OBJ) -o $@ $(TEST_LFLAGS)
+test: $(C_OBJ) build/tests.o $(LIB_FILE)
+	$(CC) build/tests.o -o $@ $(TEST_LFLAGS)
 
 build/tests.o: tests.c
-	$(CC) $(TEST_CFLAGS) $< -o $@
+	@mkdir -p $(dir $@)
+	$(CC) $(TEST_CFLAGS) tests.c -o $@
 
-# INSTALL / UNINSTALL
+# install --------------------------------------------------
 
 install:
-	sudo mkdir -p $(INSTALL_PREFIX)/lib
-	sudo mkdir -p $(INSTALL_PREFIX)/include
-	sudo cp $(LIB_FILE) $(INSTALL_PREFIX)/lib
-	sudo mkdir -p $(INSTALL_PREFIX)/include/$(LIB_NAME)
-	sudo cp -r $(INSTALL_HFILES) $(INSTALL_PREFIX)/include/$(LIB_NAME)
+	@mkdir -p $(PREFIX)/lib
+	cp $(LIB_FILE) $(PREFIX)/lib
+
+	@mkdir -p $(PREFIX)/include/$(LIB_NAME)
+	cp -r include/* $(PREFIX)/include/$(LIB_NAME)
+
+# uninstall ------------------------------------------------
 
 uninstall:
-	sudo rm -f $(INSTALL_PREFIX)/lib/$(LIB_FILE)
-	sudo rm -rf $(INSTALL_PREFIX)/include/$(LIB_NAME)
+	rm -f $(PREFIX)/lib/$(LIB_FILE)
+	rm -rf $(PREFIX)/include/$(LIB_NAME)
 
-# CLEAN
+# clean ----------------------------------------------------
 
 clean:
 	rm -rf build
-	rm -f $(LIB_FILE)
-	rm -f compile_commands.json
+	rm -f $(LIB_AR_FILE)
+	rm -f $(LIB_SO_FILE)
 	rm -f test
-
--include $(wildcard build/dependencies/*.d)
+	rm -f compile_commands.json
