@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# Validaton & Global Settings
+# Validation & Global Settings
 # -----------------------------------------------------------------------------
 
 GOAL_COUNT := $(words $(MAKECMDGOALS))
@@ -10,60 +10,96 @@ ifneq ($(GOAL_COUNT),1)
     endif
 endif
 
-ifndef LIB_TYPE
-    LIB_TYPE = shared
+# ---------------------------------------------------------
+
+LIB_TYPE ?= so
+
+PREFIX ?= /usr/local
+
+PC_PREFIX ?= /usr/local/lib/pkgconfig
+
+OPT ?= 2
+OPT_FLAG = -O$(OPT)
+
+DEBUG ?= 0
+ifeq ($(DEBUG),1)
+    DEBUG_FLAG = -g
+    OPT_FLAG = -O0
 endif
 
-ifndef PREFIX
-    PREFIX = /usr/local
-endif
-
-ifneq ($(LIB_TYPE),shared)
-    ifneq ($(LIB_TYPE),archive)
-        $(error Invalid LIB_TYPE. USAGE: make [TARGET] [LIB_TYPE=shared/archive])
-    endif
-endif
+# ---------------------------------------------------------
 
 LIB_NAME = sarena
+LIB_PC = $(LIB_NAME).pc
 
 CC = gcc
+AR = ar
+MAKE = make
 
 C_SRC = $(shell find src -name "*.c")
 C_OBJ = $(patsubst src/%.c,build/%.o,$(C_SRC))
+
+INSTALL_INCLUDE = include/*
 
 # -----------------------------------------------------------------------------
 # Build Flags
 # -----------------------------------------------------------------------------
 
 # ---------------------------------------------------------
-# Base Flags
+# pkgconf
 # ---------------------------------------------------------
 
-BASE_CFLAGS_DEBUG = -g
-BASE_CFLAGS_OPTIMIZATION = -O0
-BASE_CFLAGS_WARN = -Wall
-BASE_CFLAGS_MAKE = -MMD -MP
-BASE_CFLAGS_INCLUDE = -Iinclude
+_PC_PREFIX = $(PREFIX)
+_PC_EXEC_PREFIX = $${prefix}
+_PC_LIBDIR = $${exec_prefix}/lib
+_PC_INCLUDEDIR = $${exec_prefix}/include
+_PC_NAME = $(LIB_NAME)
+_PC_DESCRIPTION = Arena allocator
+_PC_VERSION = 1.0.0
+_PC_LIBS = -L$${libdir} -l$(LIB_NAME)
+_PC_CFLAGS = -I$${includedir}/$(LIB_NAME)
+_PC_REQUIRES =
+_PC_REQUIRES_PRIVATE =
 
-BASE_CFLAGS = -c -fPIC $(BASE_CFLAGS_INCLUDE) $(BASE_CFLAGS_MAKE) \
-$(BASE_CFLAGS_WARN) $(BASE_CFLAGS_DEBUG) $(BASE_CFLAGS_OPTIMIZATION)
+PC_DEPS = $(_PC_REQUIRES)
+ifneq ($(PC_DEPS),)
+    PC_CFLAGS = $(shell pkgconf --silence-errors --cflags $(PC_DEPS))
+    PC_LFLAGS = $(shell pkgconf --silence-errors --libs $(PC_DEPS))
+endif
+
+DEP_CFLAGS = $(PC_CFLAGS)
+DEP_LFLAGS = $(PC_LFLAGS) -lm
 
 # ---------------------------------------------------------
-# C Source Flags
+# Source Flags
 # ---------------------------------------------------------
 
-SRC_CFLAGS = $(BASE_CFLAGS)
+SRC_CFLAGS_DEBUG = $(DEBUG_FLAG)
+SRC_CFLAGS_OPTIMIZATION = $(OPT_FLAG)
+SRC_CFLAGS_WARN = -Wall
+SRC_CFLAGS_MAKE = -MMD -MP
+SRC_CFLAGS_INCLUDE = -Iinclude $(DEP_CFLAGS)
+
+SRC_CFLAGS = -c -fPIC $(SRC_CFLAGS_INCLUDE) $(SRC_CFLAGS_MAKE) \
+$(SRC_CFLAGS_WARN) $(SRC_CFLAGS_DEBUG) $(SRC_CFLAGS_OPTIMIZATION)
 
 # ---------------------------------------------------------
 # Test Flags
 # ---------------------------------------------------------
 
-TEST_CFLAGS = $(BASE_CFLAGS)
+TEST_CFLAGS_DEBUG = $(DEBUG_FLAG)
+TEST_CFLAGS_OPTIMIZATION = -O0
+TEST_CFLAGS_WARN = -Wall
+TEST_CFLAGS_MAKE = -MMD -MP
+TEST_CFLAGS_INCLUDE = -Iinclude $(DEP_CFLAGS)
 
-TEST_LFLAGS = -L. -l$(LIB_NAME)
+TEST_CFLAGS = -c $(TEST_CFLAGS_INCLUDE) $(TEST_CFLAGS_MAKE) \
+$(TEST_CFLAGS_WARN) $(TEST_CFLAGS_DEBUG) $(TEST_CFLAGS_OPTIMIZATION)
 
-ifeq ($(LIB_TYPE),shared)
-TEST_LFLAGS += -Wl,-rpath,.
+TEST_LFLAGS = -L. -l$(LIB_NAME) $(DEP_LFLAGS)
+
+ifeq ($(LIB_TYPE),so)
+    TEST_LFLAGS += -Wl,-rpath,.
 endif
 
 # ---------------------------------------------------------
@@ -73,24 +109,25 @@ endif
 LIB_AR_FILE = lib$(LIB_NAME).a
 LIB_SO_FILE = lib$(LIB_NAME).so
 
-ifeq ($(LIB_TYPE), archive)
-LIB_FILE = $(LIB_AR_FILE)
-LIB_MAKE = ar rcs $(LIB_FILE) $(C_OBJ)
+ifeq ($(LIB_TYPE), so)
+    LIB_FILE = $(LIB_SO_FILE)
 else 
-LIB_FILE = $(LIB_SO_FILE)
-LIB_MAKE = $(CC) -shared $(C_OBJ) -o $(LIB_FILE)
+    LIB_FILE = $(LIB_AR_FILE)
 endif
 
 # -----------------------------------------------------------------------------
 # Targets
 # -----------------------------------------------------------------------------
 
-.PHONY: all clean install uninstall 
+.PHONY: all clean install uninstall
 
 all: $(LIB_FILE)
 
-$(LIB_FILE): $(C_OBJ)
-	$(LIB_MAKE)
+$(LIB_AR_FILE): $(C_OBJ)
+	$(AR) rcs $@ $(C_OBJ)
+
+$(LIB_SO_FILE): $(C_OBJ)
+	$(CC) -shared $(C_OBJ) -o $@
 
 $(C_OBJ): build/%.o: src/%.c
 	@mkdir -p $(dir $@)
@@ -107,18 +144,34 @@ build/tests.o: tests.c
 
 # install --------------------------------------------------
 
-install:
-	@mkdir -p $(PREFIX)/lib
-	cp $(LIB_FILE) $(PREFIX)/lib
+install: $(LIB_PC)
+	@mkdir -p $(PREFIX)/lib # lib
+	ln -f $(LIB_FILE) $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include/$(LIB_NAME) # headers
+	cp -r $(INSTALL_INCLUDE) $(PREFIX)/include/$(LIB_NAME)
+	mkdir -p $(PC_PREFIX) # pc file
+	mv $(LIB_PC) $(PC_PREFIX)
 
-	@mkdir -p $(PREFIX)/include/$(LIB_NAME)
-	cp -r include/* $(PREFIX)/include/$(LIB_NAME)
+$(LIB_PC):
+	@echo 'prefix=$(_PC_PREFIX)' > $@
+	@echo 'exec_prefix=$(_PC_EXEC_PREFIX)' >> $@
+	@echo 'libdir=$(_PC_LIBDIR)' >> $@
+	@echo 'includedir=$(_PC_INCLUDEDIR)' >> $@
+	@echo '' >> $@
+	@echo 'Name: $(_PC_NAME)' >> $@
+	@echo 'Description: $(_PC_DESCRIPTION)' >> $@
+	@echo 'Version: $(_PC_VERSION)' >> $@
+	@echo 'Libs: $(_PC_LIBS)' >> $@
+	@echo 'Cflags: $(_PC_CFLAGS)' >> $@
+	@echo 'Requires: $(_PC_REQUIRES)' >> $@
+	@echo 'Requires.private: $(_PC_REQUIRES_PRIVATE)' >> $@
 
 # uninstall ------------------------------------------------
 
 uninstall:
 	rm -f $(PREFIX)/lib/$(LIB_FILE)
 	rm -rf $(PREFIX)/include/$(LIB_NAME)
+	rm -f $(PC_PREFIX)/$(LIB_PC)
 
 # clean ----------------------------------------------------
 
@@ -127,4 +180,5 @@ clean:
 	rm -f $(LIB_AR_FILE)
 	rm -f $(LIB_SO_FILE)
 	rm -f test
+	rm -f $(LIB_PC)
 	rm -f compile_commands.json
