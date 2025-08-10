@@ -78,9 +78,6 @@ void sarena_destroy(SArena* arena);
  * 1. SA_MALLOC_FAIL - if malloc() fails;
  * 2. SA_INVALID_ARG - if 'size' is 0 or greater than arena's 'region_cap'.
  *
- * Calling sarena_destroy multiple times on a single SArena is undefined
- * behavior.
- *
  * Return value:
  * ON SUCCESS: address of the newly-allocated memory inside the arena
  * of 'size' bytes;
