@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <string.h>
 
+#define _SARENA_IMPLEMENTATION_
 #include "sarena.h"
 
 #define PERROR(err) if(err != SA_SUCCESS) printf("%d\n",err);
@@ -16,7 +17,7 @@ struct M
 int main(int argc, char *argv[])
 {
     sa_err err;
-    SArena* a = sarena_create(1000000, &err);
+    sarena* a = sarena_create(1000000, &err);
     PERROR(err);
 
     size_t i;

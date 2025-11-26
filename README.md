@@ -1,10 +1,7 @@
-# S-arena
+# SArena
 
-__S-arena__ is a simple arena allocator written in C. It provides the basic features: allocation, rewinding, resetting.
+__SArena__ is a tiny C header-only library that provides a simple to use arena allocator.
 
-## Makefile instructions:
+# Usage:
 
-1. make \[LIB\_TYPE=shared/archive\] - This will compile the source files and build the .so/.a file.
-2. make install \[PREFIX={prefix}\] \[LIB\_TYPE=shared/archive\] - This will place the header file inside _prefix_/include and the built .so/.a file inside _prefix_/lib.
-
-_Default options are PREFIX=/usr/local and default LIB\_TYPE=shared._
+Include the header in your project and define the implementation macro where needed. To install globally, use `make install PREFIX={prefix}`. By default, `PREFIX=/usr/local`.
