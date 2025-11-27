@@ -97,13 +97,6 @@ void* sarena_calloc(sarena* arena, size_t size, sa_err* out_err);
 
 /* -------------------------------------------------------------------------- */
 
-/* This function is equal to the following call:
- * sarena_malloc(arena, size, out_err); */
-
-void* sarena_realloc(sarena* arena, void* ptr, size_t size, sa_err* out_err);
-
-/* -------------------------------------------------------------------------- */
-
 /* This function resets the arena by marking all allocated memory within
  * existing regions as available for reuse. It does not free any memory
  * but instead sets all regions' used capacity to zero. 
@@ -335,17 +328,6 @@ void* sarena_calloc(sarena* arena, size_t size, sa_err* out_err)
 
     if(status == SA_SUCCESS)
         memset(alloc_addr, 0, size);
-
-    SA_UNLOCK(arena);
-    SA_RETURN(alloc_addr, out_err, status);
-}
-
-void* sarena_realloc(sarena* arena, void* ptr, size_t size, sa_err* out_err)
-{
-    SA_LOCK(arena);
-
-    sa_err status;
-    void* alloc_addr = _sarena_malloc(arena, size, &status);
 
     SA_UNLOCK(arena);
     SA_RETURN(alloc_addr, out_err, status);
