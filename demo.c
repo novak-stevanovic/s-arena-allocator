@@ -5,8 +5,6 @@
 #define _SARENA_IMPLEMENTATION_
 #include "sarena.h"
 
-#define PERROR(err) if(err != SA_SUCCESS) printf("%d\n",err);
-
 struct M
 {
     char name[50];
@@ -16,24 +14,27 @@ struct M
 
 int main(int argc, char *argv[])
 {
-    sa_err err;
-    sarena* a = sarena_create(1000000, &err);
-    PERROR(err);
+    sarena* a = sarena_create(1000000);
+    assert(a != NULL);
 
     size_t i;
+    void* it_alloc;
     for(i = 0; i < 10000; i++)
     {
-        sarena_malloc(a, sizeof(struct M), &err);
-        assert(err == SA_SUCCESS);
+        it_alloc = sarena_malloc(a, sizeof(struct M));
+        assert(it_alloc != NULL);
     }
 
-    printf("REWIND\n");
-    sarena_rewind(a);
+    // printf("REWIND\n");
+    // sarena_rewind(a);
 
-    for(i = 0; i < 1000000; i++)
+    printf("RESET\n");
+    sarena_reset(a);
+
+    for(i = 0; i < 10000000; i++)
     {
-        sarena_malloc(a, sizeof(struct M), &err);
-        assert(err == SA_SUCCESS);
+        it_alloc = sarena_malloc(a, sizeof(struct M));
+        assert(it_alloc != NULL);
     }
 
     sarena_destroy(a);
