@@ -9,4 +9,4 @@ Include the header in your project and define the implementation macro where nee
 Compile flags: `-pthread`
 Link flags: `-pthread`
 
-To install globally, use `make install PREFIX={prefix}`. By default, `PREFIX=/usr/local`.
+To install globally, use `make install PREFIX={prefix}`. This will place the header files inside `{prefix}/include/sarena`. By default, `PREFIX=/usr/local`.
