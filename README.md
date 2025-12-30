@@ -6,7 +6,7 @@ __SArena__ is a tiny C header-only library that provides a simple to use arena a
 
 Include the header in your project and define the implementation macro where needed. 
 
-Compile flags: `-pthread`
-Link flags: `-pthread`
+- Compile flags: `-pthread`
+- Link flags: `-pthread`
 
 To install globally, use `make install PREFIX={prefix}`. This will place the header files inside `{prefix}/include/sarena`. By default, `PREFIX=/usr/local`.
