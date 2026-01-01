@@ -109,14 +109,8 @@ void sarena_reset(sarena* arena);
 
 #ifdef _SARENA_IMPLEMENTATION_
 
-#include <pthread.h>
-#include <assert.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-#define SA_LOCK(arena) pthread_mutex_lock(&arena->_lock)
-#define SA_UNLOCK(arena) pthread_mutex_unlock(&arena->_lock)
 
 /* -------------------------------------------------------------------------- */
 
@@ -159,8 +153,6 @@ struct sarena
     size_t _region_cap;
 
     region* _rewind_it;
-
-    pthread_mutex_t _lock;
 };
 
 static region* _region_alloc(size_t total_cap)
@@ -280,7 +272,6 @@ void sarena_destroy(sarena* arena)
 
     arena->_region_cap = 0;
     arena->_rewind_it = NULL;
-    pthread_mutex_destroy(&arena->_lock);
     free(arena);
 }
 
@@ -288,11 +279,7 @@ void* sarena_malloc(sarena* arena, size_t size)
 {
     if(arena == NULL) return NULL;
 
-    SA_LOCK(arena);
-
     void* alloc_addr = _sarena_malloc(arena, size);
-
-    SA_UNLOCK(arena);
 
     return alloc_addr;
 }
@@ -301,14 +288,10 @@ void* sarena_calloc(sarena* arena, size_t size)
 {
     if(arena == NULL) return NULL;
 
-    SA_LOCK(arena);
-
     void* alloc_addr = _sarena_malloc(arena, size);
 
     if(alloc_addr != NULL)
         memset(alloc_addr, 0, size);
-
-    SA_UNLOCK(arena);
 
     return alloc_addr;
 }
@@ -317,13 +300,8 @@ void sarena_rewind(sarena* arena)
 {
     if(arena == NULL) return;
 
-    SA_LOCK(arena);
-
     if(arena->_regions._count == 0) 
-    {
-        SA_UNLOCK(arena);
         return;
-    }
 
     region* it = arena->_regions._head;
 
@@ -333,23 +311,17 @@ void sarena_rewind(sarena* arena)
     // start rewinding if more regions exist
     if(arena->_regions._count > 1)
         arena->_rewind_it = arena->_regions._head;
-
-    SA_UNLOCK(arena);
 }
 
 void sarena_reset(sarena* arena)
 {
     if(arena == NULL) return;
 
-    SA_LOCK(arena);
-
     while(arena->_regions._count > 1)
         _region_list_pop_front(&arena->_regions);
 
     arena->_regions._head->_used_cap = 0;
     arena->_rewind_it = NULL;
-
-    SA_UNLOCK(arena);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -364,10 +336,7 @@ static int _sarena_init(sarena* arena, size_t region_cap)
 
     int status = _region_list_push_back(&arena->_regions, region_cap);
     if(status == 0)
-    {
-        pthread_mutex_init(&arena->_lock, NULL);
         return 0;
-    }
     else return 1;
 }
 
