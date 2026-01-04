@@ -19,4 +19,4 @@ Default options are `PREFIX=/usr/local`, `PC_PREFIX=PREFIX/lib/pkgconfig`, `OPT=
 
 If you are using the library as __header-only__, simply include the header in your project and define the implementation macro where needed.
 
-If using the library in the __standard way__, compile your project with flags: `$(pkgconf --cflags uconv)` and link with flags: `$(pkgconf --libs uconv)`. For this to work, make sure that pkg-config seaches in the directory `PC_PREFIX` when using pkg-config.
+If using the library in the __standard way__, compile your project with flags: `$(pkgconf --cflags nuterm)` and link with flags: `$(pkgconf --libs nuterm)`. For this to work, make sure that pkg-config searches in the directory of the .pc file generated in the installation process.
