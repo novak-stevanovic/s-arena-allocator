@@ -1,2 +1,2 @@
-#define _SARENA_IMPLEMENTATION_
+#define SARENA_IMPLEMENTATION
 #include "sarena.h"

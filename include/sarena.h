@@ -25,8 +25,8 @@
 /* START */
 /* -------------------------------------------------------------------------- */
 
-#ifndef _SARENA_H_
-#define _SARENA_H_
+#ifndef SARENA_H
+#define SARENA_H
 
 #include <stddef.h>
 
@@ -138,11 +138,13 @@ void sarena_reset(sarena* arena);
 }
 #endif
 
+#endif // _SARENA_H_
+
 /* -------------------------------------------------------------------------- */
 /* IMPLEMENTATION */
 /* -------------------------------------------------------------------------- */
 
-#ifdef _SARENA_IMPLEMENTATION_
+#ifdef SARENA_IMPLEMENTATION
 
 #include <string.h>
 #include <stdlib.h>
@@ -412,6 +414,4 @@ static void* _sarena_malloc(sarena* arena, size_t size)
     return alloc_addr;
 }
 
-#endif // _SARENA_IMPLEMENTATION_
-
-#endif // _SARENA_H_
+#endif // SARENA_IMPLEMENTATION
