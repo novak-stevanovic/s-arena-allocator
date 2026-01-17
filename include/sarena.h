@@ -151,34 +151,34 @@ void sarena_reset(sarena* arena);
 
 /* -------------------------------------------------------------------------- */
 
-typedef struct region region;
-typedef struct region_list region_list;
+typedef struct sa_region sa_region;
+typedef struct sa_region_list sa_region_list;
 
-struct region
+struct sa_region
 {
     size_t _used_cap;
     size_t _total_cap;
     char* _mem_pool;
 
-    region* _next;
+    sa_region* _next;
 };
 
-static region* _region_alloc(size_t total_cap);
-static void _region_destroy(region* region);
+static sa_region* _sa_region_alloc(size_t total_cap);
+static void _sa_region_destroy(sa_region* region);
 
 /* -------------------------------------------------------------------------- */
 
-struct region_list
+struct sa_region_list
 {
-    region* _head;
-    region* _tail;
+    sa_region* _head;
+    sa_region* _tail;
 
     size_t _count;
 };
 
-static void _region_list_init(region_list* list);
-static int _region_list_push_back(region_list* list, size_t total_cap);
-static void _region_list_pop_front(region_list* list);
+static void _sa_region_list_init(sa_region_list* list);
+static int _sa_region_list_push_back(sa_region_list* list, size_t total_cap);
+static void _sa_region_list_pop_front(sa_region_list* list);
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
@@ -186,36 +186,36 @@ static void _region_list_pop_front(region_list* list);
 
 struct sarena
 {
-    region_list _regions;
+    sa_region_list _regions;
     size_t _region_cap;
 
-    region* _rewind_it;
+    sa_region* _rewind_it;
 };
 
-static region* _region_alloc(size_t total_cap)
+static sa_region* _sa_region_alloc(size_t total_cap)
 {
-    region* new = (region*)malloc(sizeof(region));
+    sa_region* new_region = (sa_region*)malloc(sizeof(sa_region));
 
-    if(new == NULL) return NULL;
+    if(new_region == NULL) return NULL;
 
-    new->_next = NULL;
-    new->_total_cap = 0;
-    new->_used_cap = 0;
+    new_region->_next = NULL;
+    new_region->_total_cap = 0;
+    new_region->_used_cap = 0;
 
-    new->_mem_pool = malloc(total_cap);
+    new_region->_mem_pool = malloc(total_cap);
 
-    if(new->_mem_pool == NULL)
+    if(new_region->_mem_pool == NULL)
     {
-        free(new);
+        free(new_region);
         return NULL;
     }
 
-    new->_total_cap = total_cap;
+    new_region->_total_cap = total_cap;
 
-    return new;
+    return new_region;
 }
 
-static void _region_destroy(region* region)
+static void _sa_region_destroy(sa_region* region)
 {
     region->_next = NULL;
     region->_total_cap = 0;
@@ -230,16 +230,16 @@ static void _region_destroy(region* region)
 
 /* -------------------------------------------------------------------------- */
 
-static void _region_list_init(region_list* list)
+static void _sa_region_list_init(sa_region_list* list)
 {
     list->_count = 0;
     list->_head = NULL;
     list->_tail = NULL;
 }
 
-static int _region_list_push_back(region_list* list, size_t total_cap)
+static int _sa_region_list_push_back(sa_region_list* list, size_t total_cap)
 {
-    region* new = _region_alloc(total_cap);
+    sa_region* new = _sa_region_alloc(total_cap);
     if(new == NULL) return 1;
 
     if(list->_head == NULL)
@@ -258,21 +258,21 @@ static int _region_list_push_back(region_list* list, size_t total_cap)
     return 0;
 }
 
-static void _region_list_pop_front(region_list* list)
+static void _sa_region_list_pop_front(sa_region_list* list)
 {
     if(list->_head == list->_tail)
     {
-        _region_destroy(list->_head);
+        _sa_region_destroy(list->_head);
         list->_head = NULL;
         list->_tail = NULL;
     }
     else
     {
-        region* old_head = list->_head;
+        sa_region* old_head = list->_head;
 
         list->_head = list->_head->_next;
 
-        _region_destroy(old_head);
+        _sa_region_destroy(old_head);
     }
 
     list->_count--;
@@ -305,7 +305,7 @@ void sarena_destroy(sarena* arena)
     if(arena == NULL) return;
 
     while(arena->_regions._count > 0)
-        _region_list_pop_front(&arena->_regions);
+        _sa_region_list_pop_front(&arena->_regions);
 
     arena->_region_cap = 0;
     arena->_rewind_it = NULL;
@@ -340,7 +340,7 @@ void sarena_rewind(sarena* arena)
     if(arena->_regions._count == 0) 
         return;
 
-    region* it = arena->_regions._head;
+    sa_region* it = arena->_regions._head;
 
     for(; it != NULL; it = it->_next)
         it->_used_cap = 0;
@@ -355,7 +355,7 @@ void sarena_reset(sarena* arena)
     if(arena == NULL) return;
 
     while(arena->_regions._count > 1)
-        _region_list_pop_front(&arena->_regions);
+        _sa_region_list_pop_front(&arena->_regions);
 
     arena->_regions._head->_used_cap = 0;
     arena->_rewind_it = NULL;
@@ -369,11 +369,10 @@ static int _sarena_init(sarena* arena, size_t region_cap)
 
     arena->_region_cap = region_cap;
     arena->_rewind_it = NULL;
-    _region_list_init(&arena->_regions);
+    _sa_region_list_init(&arena->_regions);
 
-    int status = _region_list_push_back(&arena->_regions, region_cap);
-    if(status == 0)
-        return 0;
+    int status = _sa_region_list_push_back(&arena->_regions, region_cap);
+    if(status == 0) return 0;
     else return 1;
 }
 
@@ -382,7 +381,7 @@ static void* _sarena_malloc(sarena* arena, size_t size)
     if((size > arena->_region_cap) || (size == 0))
         return NULL;
 
-    region* curr_region = (arena->_rewind_it == NULL) ?
+    sa_region* curr_region = (arena->_rewind_it == NULL) ?
         arena->_regions._tail : arena->_rewind_it;
 
     size_t curr_region_cap = curr_region->_total_cap - curr_region->_used_cap;
@@ -391,7 +390,7 @@ static void* _sarena_malloc(sarena* arena, size_t size)
     {
         if(arena->_rewind_it == NULL) // if not rewinding, push back a region
         {
-            int status = _region_list_push_back(&arena->_regions, arena->_region_cap);
+            int status = _sa_region_list_push_back(&arena->_regions, arena->_region_cap);
             if(status != 0)
                 return NULL;
         }
