@@ -163,8 +163,8 @@ struct sa_region
     sa_region* _next;
 };
 
-static sa_region* _sa_region_alloc(size_t total_cap);
-static void _sa_region_destroy(sa_region* region);
+static sa_region* sa__region_alloc(size_t total_cap);
+static void sa__region_destroy(sa_region* region);
 
 /* -------------------------------------------------------------------------- */
 
@@ -176,9 +176,9 @@ struct sa_region_list
     size_t _count;
 };
 
-static void _sa_region_list_init(sa_region_list* list);
-static int _sa_region_list_push_back(sa_region_list* list, size_t total_cap);
-static void _sa_region_list_pop_front(sa_region_list* list);
+static void sa__region_list_init(sa_region_list* list);
+static int sa__region_list_push_back(sa_region_list* list, size_t total_cap);
+static void sa__region_list_pop_front(sa_region_list* list);
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
@@ -192,7 +192,7 @@ struct sarena
     sa_region* _rewind_it;
 };
 
-static sa_region* _sa_region_alloc(size_t total_cap)
+static sa_region* sa__region_alloc(size_t total_cap)
 {
     sa_region* new_region = (sa_region*)malloc(sizeof(sa_region));
 
@@ -215,7 +215,7 @@ static sa_region* _sa_region_alloc(size_t total_cap)
     return new_region;
 }
 
-static void _sa_region_destroy(sa_region* region)
+static void sa__region_destroy(sa_region* region)
 {
     region->_next = NULL;
     region->_total_cap = 0;
@@ -230,16 +230,16 @@ static void _sa_region_destroy(sa_region* region)
 
 /* -------------------------------------------------------------------------- */
 
-static void _sa_region_list_init(sa_region_list* list)
+static void sa__region_list_init(sa_region_list* list)
 {
     list->_count = 0;
     list->_head = NULL;
     list->_tail = NULL;
 }
 
-static int _sa_region_list_push_back(sa_region_list* list, size_t total_cap)
+static int sa__region_list_push_back(sa_region_list* list, size_t total_cap)
 {
-    sa_region* new = _sa_region_alloc(total_cap);
+    sa_region* new = sa__region_alloc(total_cap);
     if(new == NULL) return 1;
 
     if(list->_head == NULL)
@@ -258,11 +258,11 @@ static int _sa_region_list_push_back(sa_region_list* list, size_t total_cap)
     return 0;
 }
 
-static void _sa_region_list_pop_front(sa_region_list* list)
+static void sa__region_list_pop_front(sa_region_list* list)
 {
     if(list->_head == list->_tail)
     {
-        _sa_region_destroy(list->_head);
+        sa__region_destroy(list->_head);
         list->_head = NULL;
         list->_tail = NULL;
     }
@@ -272,7 +272,7 @@ static void _sa_region_list_pop_front(sa_region_list* list)
 
         list->_head = list->_head->_next;
 
-        _sa_region_destroy(old_head);
+        sa__region_destroy(old_head);
     }
 
     list->_count--;
@@ -280,8 +280,8 @@ static void _sa_region_list_pop_front(sa_region_list* list)
 
 /* -------------------------------------------------------------------------- */
 
-static int _sarena_init(sarena* arena, size_t region_cap);
-static void* _sarena_malloc(sarena* arena, size_t size);
+static int sarena__init(sarena* arena, size_t region_cap);
+static void* sarena__malloc(sarena* arena, size_t size);
 
 /* -------------------------------------------------------------------------- */
 
@@ -290,7 +290,7 @@ sarena* sarena_create(size_t region_cap)
     sarena* new = (sarena*)malloc(sizeof(sarena));
     if(new == NULL) return NULL;
 
-    int status = _sarena_init(new, region_cap);
+    int status = sarena__init(new, region_cap);
 
     if(status != 0)
     {
@@ -305,7 +305,7 @@ void sarena_destroy(sarena* arena)
     if(arena == NULL) return;
 
     while(arena->_regions._count > 0)
-        _sa_region_list_pop_front(&arena->_regions);
+        sa__region_list_pop_front(&arena->_regions);
 
     arena->_region_cap = 0;
     arena->_rewind_it = NULL;
@@ -316,7 +316,7 @@ void* sarena_malloc(sarena* arena, size_t size)
 {
     if(arena == NULL) return NULL;
 
-    void* alloc_addr = _sarena_malloc(arena, size);
+    void* alloc_addr = sarena__malloc(arena, size);
 
     return alloc_addr;
 }
@@ -325,7 +325,7 @@ void* sarena_calloc(sarena* arena, size_t size)
 {
     if(arena == NULL) return NULL;
 
-    void* alloc_addr = _sarena_malloc(arena, size);
+    void* alloc_addr = sarena__malloc(arena, size);
 
     if(alloc_addr != NULL)
         memset(alloc_addr, 0, size);
@@ -355,7 +355,7 @@ void sarena_reset(sarena* arena)
     if(arena == NULL) return;
 
     while(arena->_regions._count > 1)
-        _sa_region_list_pop_front(&arena->_regions);
+        sa__region_list_pop_front(&arena->_regions);
 
     arena->_regions._head->_used_cap = 0;
     arena->_rewind_it = NULL;
@@ -363,20 +363,20 @@ void sarena_reset(sarena* arena)
 
 /* -------------------------------------------------------------------------- */
 
-static int _sarena_init(sarena* arena, size_t region_cap)
+static int sarena__init(sarena* arena, size_t region_cap)
 {
     if(region_cap == 0) return 2;
 
     arena->_region_cap = region_cap;
     arena->_rewind_it = NULL;
-    _sa_region_list_init(&arena->_regions);
+    sa__region_list_init(&arena->_regions);
 
-    int status = _sa_region_list_push_back(&arena->_regions, region_cap);
+    int status = sa__region_list_push_back(&arena->_regions, region_cap);
     if(status == 0) return 0;
     else return 1;
 }
 
-static void* _sarena_malloc(sarena* arena, size_t size)
+static void* sarena__malloc(sarena* arena, size_t size)
 {
     if((size > arena->_region_cap) || (size == 0))
         return NULL;
@@ -390,7 +390,7 @@ static void* _sarena_malloc(sarena* arena, size_t size)
     {
         if(arena->_rewind_it == NULL) // if not rewinding, push back a region
         {
-            int status = _sa_region_list_push_back(&arena->_regions, arena->_region_cap);
+            int status = sa__region_list_push_back(&arena->_regions, arena->_region_cap);
             if(status != 0)
                 return NULL;
         }
