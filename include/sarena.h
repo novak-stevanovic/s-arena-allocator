@@ -22,7 +22,7 @@
 
 /* ========================================================================== */
 /* -------------------------------------------------------------------------- */
-/* PUBLIC */
+/* DEFINE */
 /* -------------------------------------------------------------------------- */
 /* ========================================================================== */
 
@@ -31,9 +31,32 @@
 
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#if !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
+#error "C99 or newer is required"
+#endif /* C99 check */
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#include <stdalign.h>
+#define SA__MAX_ALIGN alignof(max_align_t)
+#else
+struct sa__align_helper_struct
+{
+    char c;
+    union
+    {
+        long double ld;
+        void* p;
+        long long ll;
+    } align;
+};
+#define SA__MAX_ALIGN offsetof(struct sa__align_helper_struct, align)
+#endif // defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+
+/* ========================================================================== */
+/* -------------------------------------------------------------------------- */
+/* PUBLIC */
+/* -------------------------------------------------------------------------- */
+/* ========================================================================== */
 
 /* ========================================================================== */
 
@@ -105,10 +128,6 @@ void sarena_rewind(sarena* arena);
 void sarena_reset(sarena* arena);
 
 /* ========================================================================== */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // _SARENA_H_
 
@@ -350,13 +369,15 @@ static int sarena__init(sarena* arena, size_t region_cap)
 
 static void* sarena__malloc(sarena* arena, size_t size)
 {
-    if((size > arena->_region_cap) || (size == 0))
-        return NULL;
+    if((size == 0) || (size > arena->_region_cap)) return NULL;
 
     sa_region* curr_region = (arena->_rewind_it == NULL) ?
         arena->_regions._tail : arena->_rewind_it;
 
-    size_t curr_region_cap = curr_region->_total_cap - curr_region->_used_cap;
+    size_t curr_region_cap = 
+        (curr_region->_total_cap > curr_region->_used_cap) ?
+        curr_region->_total_cap - curr_region->_used_cap :
+        0;
 
     if(size > curr_region_cap) // not enough memory in current region
     {
@@ -380,7 +401,18 @@ static void* sarena__malloc(sarena* arena, size_t size)
     }
 
     void* alloc_addr = curr_region->_mem_pool + curr_region->_used_cap;
-    curr_region->_used_cap += size;
+
+    /* Account for allocated, alignment */
+
+    size_t remaining = curr_region->_total_cap - curr_region->_used_cap;
+
+    size_t extra = size % SA__MAX_ALIGN;
+    size_t padding = (SA__MAX_ALIGN - extra) % SA__MAX_ALIGN;
+
+    if(padding <= remaining - size)
+        curr_region->_used_cap += padding + size;
+    else
+        curr_region->_used_cap = curr_region->_total_cap;
 
     return alloc_addr;
 }

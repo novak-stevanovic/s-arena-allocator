@@ -20,7 +20,7 @@ PREFIX ?= /usr/local
 PC_PREFIX ?= $(PREFIX)/lib/pkgconfig
 PC_WITH_PATH =
 
-OPT ?= 3
+OPT ?= O3
 
 CC = gcc
 AR = ar
@@ -38,12 +38,13 @@ C_OBJ = $(patsubst src/%.c,build/%.o,$(C_SRC))
 
 INSTALL_INCLUDE = include/sarena.h
 
-OPT_FLAG = -O$(OPT)
-
 DEBUG ?= 0
 ifeq ($(DEBUG),1)
     DEBUG_FLAG = -g
     OPT_FLAG = -O0
+    C_STD ?= c99
+else
+    C_STD ?= c11
 endif
 
 # -----------------------------------------------------------------------------
@@ -77,7 +78,7 @@ endif
 # Source Flags
 # ---------------------------------------------------------
 
-SRC_CFLAGS_STD = -std=c99
+SRC_CFLAGS_STD = -std=$(C_STD)
 SRC_CFLAGS_DEBUG = $(DEBUG_FLAG)
 SRC_CFLAGS_OPTIMIZATION = $(OPT_FLAG)
 SRC_CFLAGS_WARN = -Wall
@@ -86,6 +87,8 @@ SRC_CFLAGS_INCLUDE = -Iinclude $(DEP_CFLAGS)
 
 ifeq ($(DEBUG),1)
     SRC_CFLAGS_WARN = -Wall -Wpedantic -Wextra
+else
+    SRC_CFLAGS_WARN = -Wall -Wfatal-errors
 endif
 
 SRC_CFLAGS = -c -fPIC $(SRC_CFLAGS_STD) $(SRC_CFLAGS_INCLUDE) $(SRC_CFLAGS_MAKE) \
@@ -95,7 +98,7 @@ $(SRC_CFLAGS_WARN) $(SRC_CFLAGS_DEBUG) $(SRC_CFLAGS_OPTIMIZATION)
 # Test Flags
 # ---------------------------------------------------------
 
-DEMO_CFLAGS_STD = -std=c99
+DEMO_CFLAGS_STD = -std=$(C_STD)
 DEMO_CFLAGS_DEBUG = $(DEBUG_FLAG)
 DEMO_CFLAGS_OPTIMIZATION = -O0
 DEMO_CFLAGS_WARN = -Wall
