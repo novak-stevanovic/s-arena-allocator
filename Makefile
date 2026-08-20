@@ -20,8 +20,6 @@ PREFIX ?= /usr/local
 PC_PREFIX ?= $(PREFIX)/lib/pkgconfig
 PC_WITH_PATH =
 
-OPT ?= O3
-
 CC = gcc
 AR = ar
 MAKE = make
@@ -41,10 +39,11 @@ INSTALL_INCLUDE = include/sarena.h
 DEBUG ?= 0
 ifeq ($(DEBUG),1)
     DEBUG_FLAG = -g
-    OPT_FLAG = -O0
+    OPT ?= O0
     C_STD ?= c99
 else
     C_STD ?= c11
+    OPT ?= O3
 endif
 
 # -----------------------------------------------------------------------------
@@ -80,7 +79,7 @@ endif
 
 SRC_CFLAGS_STD = -std=$(C_STD)
 SRC_CFLAGS_DEBUG = $(DEBUG_FLAG)
-SRC_CFLAGS_OPTIMIZATION = $(OPT_FLAG)
+SRC_CFLAGS_OPTIMIZATION = -$(OPT)
 SRC_CFLAGS_WARN = -Wall
 SRC_CFLAGS_MAKE = -MMD -MP
 SRC_CFLAGS_INCLUDE = -Iinclude $(DEP_CFLAGS)
