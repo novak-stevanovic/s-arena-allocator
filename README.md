@@ -14,7 +14,7 @@ This library is stand-alone.
 
 This library can be used as a header-only library. In this case, using Make is unnecessary. The option to perform a proper install also exists - the steps involve compiling the library, generating a .pc file and placing them, together with the header, at the desired location on your system.
 
-To compile and install the library system-wide, do `make && make install`. Makefile is configurable.
+To compile and install the library system-wide, do `sudo make && make install`. Makefile is configurable.
 
 ## Usage instructions:
 
