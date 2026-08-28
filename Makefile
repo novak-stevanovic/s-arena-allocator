@@ -107,7 +107,7 @@ PC_REQUIRES_PRIVATE :=
 # TARGETS
 # =============================================================================
 
-.PHONY: so ar demo clean install install-so install-ar install-common uninstall
+.PHONY: so ar clean install install-so install-ar install-common uninstall
 
 # ---------------------------------------------------------
 # SO
@@ -139,7 +139,7 @@ $(AR_OBJ): build/ar/%.o: src/%.c
 # demo
 # ---------------------------------------------------------
 
-demo: demo.c so
+demo: demo.c $(LIB_SO)
 	$(CC) $(DEMO_CFLAGS) $< -o $@ $(DEMO_LIBS)
 
 # ---------------------------------------------------------
